@@ -1,0 +1,328 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  background-color: var(--paper);
+  /* 货架层线的极淡投影：只做质地，不做彩色渐变 */
+  background-image: repeating-linear-gradient(
+    0deg,
+    transparent 0 118px,
+    oklch(55% 0.02 76 / 0.07) 118px 119px
+  );
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 13.5px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: color-mix(in oklch, var(--tag) 55%, var(--paper));
+}
+
+h1,
+h2,
+h3,
+h4,
+p,
+figure {
+  margin: 0;
+}
+
+a {
+  color: var(--mint-ink);
+  text-decoration: none;
+}
+a:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+/* ---------------- 货架排版构件 ---------------- */
+
+.num,
+.tag-num {
+  font-family: var(--tag-font);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+.eyebrow {
+  font-family: var(--tag-font);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.label {
+  font-family: var(--sans);
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.display {
+  font-family: var(--sans);
+  font-weight: 700;
+  line-height: 1.16;
+  letter-spacing: -0.01em;
+}
+
+/* 货架层：一条金属层线 + 层号 */
+.shelf-band {
+  position: relative;
+  border-top: var(--shelf-line);
+  padding-top: 14px;
+  margin-top: 26px;
+}
+.shelf-band::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 7px;
+  background: linear-gradient(180deg, oklch(55% 0.02 76 / 0.16), transparent);
+  pointer-events: none;
+}
+
+/* 手写价签：淡黄底 + 虚线边 + 轻微旋转 */
+.price-tag {
+  position: relative;
+  display: inline-flex;
+  flex-direction: column;
+  gap: 2px;
+  background: var(--tag-pale);
+  border: 1px dashed var(--tag-deep);
+  padding: 6px 10px 5px;
+  transform: rotate(-0.8deg);
+  box-shadow: 1px 2px 0 oklch(70% 0.05 88 / 0.35);
+}
+.price-tag--mint {
+  background: var(--mint-pale);
+  border-color: var(--mint-deep);
+  box-shadow: 1px 2px 0 oklch(60% 0.05 168 / 0.3);
+}
+
+/* ---------------- 控件 ---------------- */
+
+.field {
+  width: 100%;
+  background: var(--paper-2);
+  border: 1px solid var(--shelf-soft);
+  border-radius: 0;
+  padding: 8px 10px;
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 13px;
+  outline: none;
+  transition: border-color 160ms var(--ease), background-color 160ms var(--ease);
+}
+.field:focus {
+  border-color: var(--mint-deep);
+  box-shadow: inset 0 0 0 1px var(--mint);
+}
+.field::placeholder {
+  color: var(--ink-faint);
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 1px solid var(--shelf);
+  background: var(--paper-2);
+  color: var(--ink);
+  padding: 7px 14px;
+  font-family: var(--sans);
+  font-size: 12.5px;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: background-color 150ms var(--ease), border-color 150ms var(--ease),
+    transform 150ms var(--ease);
+}
+.btn:hover:not(:disabled) {
+  background: var(--paper-3);
+}
+.btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.btn--mint {
+  background: var(--mint);
+  border-color: var(--mint-deep);
+  color: var(--mint-ink);
+  font-weight: 500;
+}
+.btn--mint:hover:not(:disabled) {
+  background: oklch(73% 0.085 168);
+}
+
+.btn--ink {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--paper-2);
+}
+.btn--ink:hover:not(:disabled) {
+  background: oklch(36% 0.03 155);
+}
+
+.btn--quiet {
+  border-color: transparent;
+  background: transparent;
+  color: var(--ink-soft);
+}
+.btn--quiet:hover:not(:disabled) {
+  background: var(--paper-3);
+  border-color: var(--shelf-soft);
+}
+
+.btn--sm {
+  padding: 4px 9px;
+  font-size: 11.5px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid var(--shelf-soft);
+  background: var(--paper-2);
+  padding: 2px 8px;
+  font-family: var(--sans);
+  font-size: 10.5px;
+  letter-spacing: 0.05em;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+.chip--mint {
+  border-color: var(--mint-deep);
+  color: var(--mint-ink);
+  background: var(--mint-pale);
+}
+.chip--tag {
+  border-color: var(--tag-deep);
+  color: oklch(42% 0.08 80);
+  background: var(--tag-pale);
+}
+.chip--alert {
+  border-color: var(--alert);
+  color: var(--alert);
+  background: var(--alert-pale);
+}
+
+/* 表格：货架式分隔线，不用卡片 */
+.grid-table {
+  width: 100%;
+  font-size: 12.5px;
+}
+.grid-table th {
+  text-align: left;
+  font-family: var(--sans);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--shelf);
+  white-space: nowrap;
+}
+.grid-table td {
+  padding: 9px 10px;
+  border-bottom: 1px solid var(--shelf-soft);
+  vertical-align: middle;
+}
+.grid-table tbody tr:hover {
+  background: color-mix(in oklch, var(--mint-pale) 35%, var(--paper));
+}
+.grid-table .is-num {
+  font-family: var(--tag-font);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------------- 动效（只动 transform / opacity） ---------------- */
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(9px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.rise {
+  animation: rise-in 460ms var(--ease) both;
+}
+
+@keyframes tag-swing {
+  from {
+    transform: rotate(-0.8deg) translateY(-2px);
+    opacity: 0;
+  }
+  to {
+    transform: rotate(-0.8deg) translateY(0);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rise,
+  .tag-swing {
+    animation: none;
+  }
+}
+
+/* 滚动条（细、与层线同色） */
+*::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--shelf-soft);
+  border: 2px solid var(--paper);
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+@media (max-width: 767px) {
+  body {
+    font-size: 13px;
+  }
+}

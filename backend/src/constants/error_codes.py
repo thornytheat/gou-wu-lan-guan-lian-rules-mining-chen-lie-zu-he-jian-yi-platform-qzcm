@@ -1,0 +1,39 @@
+"""统一错误码与 HTTP 状态映射。"""
+from __future__ import annotations
+
+AUTH_REQUIRED = "AUTH_REQUIRED"
+AUTH_INVALID = "AUTH_INVALID"
+TOKEN_EXPIRED = "TOKEN_EXPIRED"
+FORBIDDEN = "FORBIDDEN"
+NOT_FOUND = "NOT_FOUND"
+VALIDATION_ERROR = "VALIDATION_ERROR"
+RATE_LIMITED = "RATE_LIMITED"
+CONFLICT = "CONFLICT"
+MINING_FAILED = "MINING_FAILED"
+INTERNAL_ERROR = "INTERNAL_ERROR"
+
+ERROR_MESSAGES: dict[str, str] = {
+    AUTH_REQUIRED: "请先登录",
+    AUTH_INVALID: "登录状态无效，请重新登录",
+    TOKEN_EXPIRED: "登录已过期，请重新登录",
+    FORBIDDEN: "当前角色无权执行该操作",
+    NOT_FOUND: "对象不存在",
+    VALIDATION_ERROR: "请求参数不合法",
+    RATE_LIMITED: "请求过于频繁，请稍后重试",
+    CONFLICT: "当前状态不允许该操作",
+    MINING_FAILED: "挖掘任务执行失败",
+    INTERNAL_ERROR: "服务内部错误，请稍后重试",
+}
+
+HTTP_STATUS: dict[str, int] = {
+    AUTH_REQUIRED: 401,
+    AUTH_INVALID: 401,
+    TOKEN_EXPIRED: 401,
+    FORBIDDEN: 403,
+    NOT_FOUND: 404,
+    VALIDATION_ERROR: 422,
+    RATE_LIMITED: 429,
+    CONFLICT: 409,
+    MINING_FAILED: 500,
+    INTERNAL_ERROR: 500,
+}

@@ -1,0 +1,42 @@
+/* basketrule design tokens — 便利店「货架与价签」
+   米白纸面 / 薄荷绿端架 / 价签黄 / 货架金属层线；所有具体颜色只在本文件出现。 */
+:root {
+  /* 纸面（米白，不用纯白） */
+  --paper: oklch(96.4% 0.011 95);
+  --paper-2: oklch(98.2% 0.006 96);
+  --paper-3: oklch(92.6% 0.017 92);
+  --paper-4: oklch(88.2% 0.022 90);
+
+  /* 墨（深墨绿褐，不用纯黑） */
+  --ink: oklch(30% 0.028 155);
+  --ink-soft: oklch(44% 0.024 152);
+  --ink-faint: oklch(61% 0.018 150);
+
+  /* 薄荷绿：端架 / 主操作 */
+  --mint: oklch(77% 0.082 168);
+  --mint-deep: oklch(50% 0.083 168);
+  --mint-ink: oklch(36% 0.06 168);
+  --mint-pale: oklch(93.5% 0.032 168);
+
+  /* 价签黄 */
+  --tag: oklch(87% 0.145 95);
+  --tag-deep: oklch(68% 0.135 86);
+  --tag-pale: oklch(95.5% 0.05 96);
+
+  /* 货架金属层线 */
+  --shelf: oklch(55% 0.028 72);
+  --shelf-soft: oklch(79% 0.018 76);
+  --shelf-dark: oklch(39% 0.026 70);
+
+  /* 提醒（少量） */
+  --alert: oklch(50% 0.145 28);
+  --alert-pale: oklch(95% 0.025 30);
+
+  --sans: 'Noto Sans SC', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  --tag-font: 'Archivo', 'Helvetica Neue', 'PingFang SC', sans-serif;
+
+  --rail: 246px;
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --hair: 1px solid var(--shelf-soft);
+  --shelf-line: 2px solid var(--shelf);
+}
