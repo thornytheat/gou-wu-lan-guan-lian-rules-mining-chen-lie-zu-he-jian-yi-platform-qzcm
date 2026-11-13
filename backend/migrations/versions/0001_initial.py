@@ -47,7 +47,7 @@ def upgrade() -> None:
     op.create_table(
         "order_baskets",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
-        sa.Column("basket_no", sa.String(40), nullable=False, unique=True),
+        sa.Column("basket_no", sa.String(40), nullable=False),
         sa.Column("store_code", sa.String(16), nullable=False),
         sa.Column("store_name", sa.String(80), nullable=False),
         sa.Column("store_tier", sa.String(12), nullable=False),
@@ -56,10 +56,40 @@ def upgrade() -> None:
         sa.Column("net_amount", sa.Numeric(10, 2), nullable=False),
         sa.Column("item_count", sa.Integer(), nullable=False),
         sa.Column("lines", postgresql.JSONB(), nullable=False),
+        sa.Column("version", sa.Integer(), nullable=False, server_default="1"),
+        sa.Column("status", sa.String(16), nullable=False, server_default="active"),
+        sa.Column("content_hash", sa.String(64), nullable=False, server_default=""),
+        sa.Column("source_batch", sa.String(48), nullable=False, server_default=""),
+        sa.Column("superseded_by", sa.String(48), nullable=False, server_default=""),
+        sa.Column("voided_by", sa.String(48), nullable=False, server_default=""),
+        sa.Column("imported_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
         schema=SCHEMA,
     )
     op.create_index("ix_basket_tier", "order_baskets", ["store_tier"], schema=SCHEMA)
+    op.create_index("ix_basket_status", "order_baskets", ["status"], schema=SCHEMA)
+    op.create_index("ix_basket_no", "order_baskets", ["basket_no"], schema=SCHEMA)
+    op.create_table(
+        "basket_ingest_records",
+        sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
+        sa.Column("batch_no", sa.String(48), nullable=False, unique=True),
+        sa.Column("source", sa.String(40), nullable=False, server_default="daily-upload"),
+        sa.Column("file_name", sa.String(200), nullable=False, server_default=""),
+        sa.Column("status", sa.String(20), nullable=False, server_default="applied"),
+        sa.Column("received_count", sa.Integer(), nullable=False, server_default="0"),
+        sa.Column("duplicate_count", sa.Integer(), nullable=False, server_default="0"),
+        sa.Column("voided_count", sa.Integer(), nullable=False, server_default="0"),
+        sa.Column("corrected_count", sa.Integer(), nullable=False, server_default="0"),
+        sa.Column("rejected_count", sa.Integer(), nullable=False, server_default="0"),
+        sa.Column("event_seq", postgresql.JSONB(), nullable=False, server_default="{}"),
+        sa.Column("detail", postgresql.JSONB(), nullable=False, server_default="[]"),
+        sa.Column("note", sa.Text(), nullable=False, server_default=""),
+        sa.Column("imported_by", postgresql.UUID(as_uuid=True), sa.ForeignKey(f"{SCHEMA}.users.id"), nullable=True),
+        sa.Column("imported_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+        sa.Column("trace_id", sa.String(32), nullable=False, server_default=""),
+        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+        schema=SCHEMA,
+    )
     op.create_table(
         "mining_runs",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
@@ -153,6 +183,7 @@ def upgrade() -> None:
 def downgrade() -> None:
     for table in (
         "audit_logs",
+        "basket_ingest_records",
         "planogram_slots",
         "rule_reviews",
         "rule_candidates",

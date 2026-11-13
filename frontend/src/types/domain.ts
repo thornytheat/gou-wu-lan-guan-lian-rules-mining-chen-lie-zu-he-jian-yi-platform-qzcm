@@ -3,6 +3,8 @@ export type RunStatus = 'queued' | 'running' | 'succeeded' | 'failed'
 export type RuleStatus = 'candidate' | 'adopted' | 'rejected' | 'parked'
 export type ReviewDecision = 'adopt' | 'reject' | 'park'
 export type SlotStatus = 'draft' | 'published' | 'archived'
+export type IngestRecordType = 'supplement' | 'void' | 'correction'
+export type IngestResult = 'received' | 'duplicate' | 'voided' | 'corrected' | 'rejected'
 
 export interface RunParams {
   min_support: number
@@ -87,6 +89,9 @@ export interface Basket {
   basket_ts: string | null
   net_amount: number
   item_count: number
+  version?: number
+  status?: string
+  source_batch?: string
   lines: BasketLine[]
 }
 
@@ -174,6 +179,68 @@ export interface RuleDetail extends Rule {
   }
 }
 
+export interface IngestDetailRow {
+  record_id: string
+  basket_no: string
+  record_type: IngestRecordType | string
+  result: IngestResult | string
+  result_label: string
+  occurred_at: string
+  source_seq: number
+  note: string
+  target: string
+}
+
+export interface IngestBatch {
+  batch_no: string
+  source: string
+  file_name: string
+  status: string
+  counts: Record<IngestResult, number>
+  count_labels: Record<string, string>
+  records: IngestDetailRow[]
+  note: string
+  imported_at: string | null
+  trace_id: string
+}
+
+export interface IngestFinalBasket {
+  basket_no: string
+  version: number
+  store_code: string
+  store_name: string
+  store_tier: StoreTier
+  basket_ts: string | null
+  net_amount: number
+  item_count: number
+  lines: Array<{ sku: string; qty: number; amount: number }>
+  source_batch: string
+  imported_at: string | null
+  content_hash: string
+}
+
+export interface IngestSummary extends IngestBatch {
+  latest: IngestBatch | null
+  last_counts: Record<IngestResult, number>
+  active_baskets: number
+  totals: {
+    final_baskets: number
+    baskets_voided: number
+    baskets_with_corrections: number
+    supplement_versions: number
+    ledger_batches: number
+  }
+  batches: Array<{
+    batch_no: string
+    file_name: string
+    source: string
+    imported_at: string | null
+    counts: Record<IngestResult, number>
+    counts_total: number
+  }>
+  final_baskets: IngestFinalBasket[]
+}
+
 export interface RulesResponse {
   run: MiningRun | null
   rules: Rule[]
@@ -220,9 +287,20 @@ export interface PlanBasis {
   formula: string
 }
 
+export interface PlanBasketBasis {
+  snapshot_batch: string
+  basket_count: number
+  version_scope: string
+  rule_count: number
+  last_import_at: string | null
+  imports_after_plan: number
+  note: string
+}
+
 export interface Plan {
   plan_code: string
   run_label: string
+  basket_basis?: PlanBasketBasis
   basis?: PlanBasis
   status: SlotStatus
   slot_count: number

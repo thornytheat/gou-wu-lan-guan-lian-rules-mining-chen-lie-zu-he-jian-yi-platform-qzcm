@@ -14,6 +14,7 @@ ALL_ROLES: tuple[str, ...] = (ROLE_ADMIN, ROLE_ANALYST, ROLE_VIEWER)
 # 能力矩阵：action -> 允许的角色
 PERMISSIONS: dict[str, tuple[str, ...]] = {
     "baskets:read": (ROLE_ADMIN, ROLE_ANALYST),
+    "baskets:import": (ROLE_ADMIN, ROLE_ANALYST),
     "mining:read": ALL_ROLES,
     "mining:run": (ROLE_ADMIN, ROLE_ANALYST),
     "rules:read": ALL_ROLES,

@@ -9,7 +9,11 @@ import time
 from fastapi import Depends, Request
 
 from src.constants import error_codes as codes
-from src.constants.limits import RATE_LIMIT_DEFAULT_PER_MINUTE, RATE_LIMIT_MINING_PER_MINUTE
+from src.constants.limits import (
+    RATE_LIMIT_DEFAULT_PER_MINUTE,
+    RATE_LIMIT_INGEST_PER_MINUTE,
+    RATE_LIMIT_MINING_PER_MINUTE,
+)
 from src.middlewares.auth import get_current_user
 from src.models.user import User
 from src.utils.errors import AppError
@@ -17,6 +21,7 @@ from src.utils.redis_client import get_redis
 
 _LIMITS = {
     "mining": RATE_LIMIT_MINING_PER_MINUTE,
+    "ingest": RATE_LIMIT_INGEST_PER_MINUTE,
     "default": RATE_LIMIT_DEFAULT_PER_MINUTE,
 }
 

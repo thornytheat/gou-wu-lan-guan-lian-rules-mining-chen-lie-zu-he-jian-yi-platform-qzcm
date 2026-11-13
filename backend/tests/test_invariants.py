@@ -148,3 +148,68 @@ def test_planogram_selection_conserves_uplift_and_groups() -> None:
     assert len(groups) == len(set(groups))  # 冲突组互斥
     keys = [slot["rule_key"] for slot in slots] + [row["rule_key"] for row in selection["skipped"]]
     assert sorted(keys) == sorted(candidate["rule_key"] for candidate in candidates)  # 无丢无重
+
+
+
+# ------------------------------------------------------------------ 补传入库不变量
+
+
+def test_ingest_counts_conserve_records_and_only_final_versions_matter() -> None:
+    """五类计数之和 = 记录条数；最终有效版本 = 接收 + 更正，作废 / 重复 / 拒绝不产生新版本。"""
+    from src.services.ingest_core import normalize_and_resolve
+
+    raws = [
+        {
+            "record_id": "I-1", "record_type": "supplement", "basket_no": "IB-1", "occurred_at": "2026-10-11T10:00:00+08:00",
+            "store_code": "S09", "store_name": "临港二店", "store_tier": "low", "channel": "pos",
+            "lines": [{"sku": "N01", "qty": 1, "amount": 15.72}, {"sku": "N02", "qty": 1, "amount": 7.14}],
+        },
+        {
+            "record_id": "I-2", "record_type": "supplement", "basket_no": "IB-1", "occurred_at": "2026-10-11T10:00:00+08:00",
+            "store_code": "S09", "store_name": "临港二店", "store_tier": "low", "channel": "pos",
+            "lines": [{"sku": "N01", "qty": 1, "amount": 15.72}, {"sku": "N02", "qty": 1, "amount": 7.14}],
+        },
+        {
+            "record_id": "I-3", "record_type": "void", "basket_no": "IB-2", "occurred_at": "2026-10-11T11:00:00+08:00",
+        },
+        {
+            "record_id": "I-4", "record_type": "correction", "basket_no": "IB-1-C", "same_as_no": "IB-1",
+            "occurred_at": "2026-10-11T10:00:00+08:00", "store_code": "S09", "store_name": "临港二店",
+            "store_tier": "low", "channel": "pos",
+            "lines": [{"sku": "N01", "qty": 2, "amount": 31.44}, {"sku": "N02", "qty": 1, "amount": 7.14}],
+        },
+        {
+            "record_id": "I-5", "record_type": "supplement", "basket_no": "IB-3", "occurred_at": "2026-10-11T12:00:00+08:00",
+            "store_code": "S09", "store_name": "临港二店", "store_tier": "low", "channel": "pos",
+            "lines": [{"sku": "ZZZ", "qty": 1, "amount": 1.0}],
+        },
+    ]
+    result = normalize_and_resolve(raws, "BATCH-X", {"N01", "N02"})
+    assert sum(result.counts.values()) == len(raws)
+    assert result.counts == {"received": 1, "duplicate": 1, "voided": 1, "corrected": 1, "rejected": 1}
+    final = result.final_versions
+    assert len(final) == 1 and final[0].version == 2
+    assert result.final_basket_count == 1
+    superseded = [version for version in result.versions if version.status == "superseded"]
+    assert len(superseded) == 1 and superseded[0].superseded_by == "I-4"
+
+
+def test_ingest_is_deterministic_and_order_stable_for_equal_timestamps() -> None:
+    """同一批记录重复折算结果一致；完全相同的发生时间按到达序号稳定排序。"""
+    from src.services.ingest_core import normalize_and_resolve
+
+    base = {
+        "record_type": "supplement", "occurred_at": "2026-10-11T09:00:00+08:00",
+        "store_code": "S09", "store_name": "临港二店", "store_tier": "low", "channel": "pos",
+    }
+    raws = [
+        {**base, "record_id": "D-1", "basket_no": "D-1", "source_seq": 1,
+         "lines": [{"sku": "N01", "qty": 1, "amount": 15.72}]},
+        {**base, "record_id": "D-2", "basket_no": "D-2", "source_seq": 1,
+         "lines": [{"sku": "N02", "qty": 1, "amount": 7.14}]},
+    ]
+    first = normalize_and_resolve(raws, "B", {"N01", "N02"})
+    second = normalize_and_resolve(raws, "B", {"N01", "N02"})
+    assert [row["record_id"] for row in first.summaries] == ["D-1", "D-2"]
+    assert first.counts == second.counts == {"received": 2, "duplicate": 0, "voided": 0, "corrected": 0, "rejected": 0}
+    assert [(v.basket_no, v.status) for v in first.versions] == [("D-1", "active"), ("D-2", "active")]

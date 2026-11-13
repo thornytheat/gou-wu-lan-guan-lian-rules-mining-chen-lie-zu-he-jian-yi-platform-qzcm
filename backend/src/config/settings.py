@@ -34,6 +34,7 @@ class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6379/0"
     seed_demo: bool = True
     rate_limit_mining_per_minute: int = 6
+    rate_limit_ingest_per_minute: int = 12
     rate_limit_default_per_minute: int = 240
 
     # 算法阈值（前端只展示后端回传值，不得硬编码）

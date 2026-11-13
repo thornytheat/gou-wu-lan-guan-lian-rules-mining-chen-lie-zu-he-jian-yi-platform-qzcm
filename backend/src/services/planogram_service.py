@@ -19,7 +19,7 @@ from src.services.planogram_core import (  # noqa: F401  (re-export 保持老调
 
 from datetime import datetime, timezone  # noqa: E402
 
-from sqlalchemy import delete, select  # noqa: E402
+from sqlalchemy import delete, func, select  # noqa: E402
 from sqlalchemy.orm import Session  # noqa: E402
 
 from src.constants import error_codes as codes  # noqa: E402
@@ -28,6 +28,7 @@ from src.constants.log_templates import (  # noqa: E402
     ACTION_PLANOGRAM_GENERATE,
     ACTION_PLANOGRAM_PUBLISH,
 )
+from src.models.basket_ingest_record import BasketIngestRecord  # noqa: E402
 from src.models.planogram_slot import PlanogramSlot  # noqa: E402
 from src.models.rule_candidate import RuleCandidate  # noqa: E402
 from src.models.user import User  # noqa: E402
@@ -215,9 +216,11 @@ def get_plan(db: Session, plan_code: str, role: str) -> dict | None:
         ]
     params = run.params if run else {}
     summary = (run.summary if run else {}) or {}
+    basket_basis = _basket_basis(db, plan_code, run, rules)
     return {
         "plan_code": plan_code,
         "run_label": run.run_label if run else "",
+        "basket_basis": basket_basis,
         "basis": {
             "mean_amount": summary.get("mean_amount"),
             "adoption_rate": params.get("adoption_rate"),
@@ -234,6 +237,32 @@ def get_plan(db: Session, plan_code: str, role: str) -> dict | None:
         "slots": payload_slots,
         "skipped": skipped,
         "params": run.params if run else {},
+    }
+
+
+def _basket_basis(db: Session, plan_code: str, run, rules: dict) -> dict:
+    """建议单所依据的小票版本（可核对、且发布后不被后续补传回溯）。
+
+    snapshot_batch   建议单绑定的小票版本口径 = 生成批次 run_label + 当时 active 版本
+    basket_count     生成时参与挖掘的有效小票数（run.summary.basket_count）
+    plan_generated_at / last_import_at
+    imports_after_plan 生成之后又入库的补传批次数（这些只影响之后的新分析）
+    """
+    imported_after = db.execute(
+        select(func.count())
+        .select_from(BasketIngestRecord)
+        .where(BasketIngestRecord.imported_at > func.coalesce(run.finished_at, run.created_at))
+    ).scalar_one()
+    last_import = db.execute(select(func.max(BasketIngestRecord.imported_at))).scalar_one_or_none()
+    summary = (run.summary or {}) if run is not None else {}
+    return {
+        "snapshot_batch": run.run_label if run is not None else "",
+        "basket_count": summary.get("basket_count", run.basket_count if run is not None else 0),
+        "version_scope": "active",
+        "rule_count": len(rules),
+        "last_import_at": last_import.isoformat() if last_import else None,
+        "imports_after_plan": imported_after,
+        "note": "发布后新到的作废 / 更正只影响之后的新分析；已发布建议单保持生成时的版本口径。",
     }
 
 

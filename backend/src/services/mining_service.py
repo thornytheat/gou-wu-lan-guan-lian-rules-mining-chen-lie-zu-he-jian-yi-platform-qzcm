@@ -134,8 +134,11 @@ def _execute(db: Session, run: MiningRun) -> None:
     if len(transactions) > MAX_BASKETS_PER_RUN:
         raise RuntimeError(f"小票样本超过单次上限 {MAX_BASKETS_PER_RUN}")
 
-    basket_count = db.execute(select(func.count()).select_from(OrderBasket)).scalar_one()
-    revenue = db.execute(select(func.coalesce(func.sum(OrderBasket.net_amount), 0))).scalar_one()
+    active = OrderBasket.status == "active"
+    basket_count = db.execute(select(func.count()).select_from(OrderBasket).where(active)).scalar_one()
+    revenue = db.execute(
+        select(func.coalesce(func.sum(OrderBasket.net_amount), 0)).where(active)
+    ).scalar_one()
     mean_amount = round(float(revenue) / basket_count, 2)
 
     result = apriori_service.apriori(

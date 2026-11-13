@@ -13,6 +13,9 @@ export function setupGuards(router: Router) {
     }
     if (!auth.user) await auth.restore()
     if (!auth.isAuthenticated) return { path: '/login' }
+    if (to.meta.permission && !auth.can(to.meta.permission as string)) {
+      return { path: '/planogram' }
+    }
     return true
   })
 }

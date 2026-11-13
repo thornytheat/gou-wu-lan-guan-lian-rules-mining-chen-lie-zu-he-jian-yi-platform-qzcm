@@ -12,6 +12,12 @@ const router = createRouter({
       meta: { public: true, title: '登录' },
     },
     {
+      path: '/ingest',
+      name: 'ingest',
+      component: () => import('../pages/IngestPage.vue'),
+      meta: { title: '补传核对', section: '00 入库', permission: 'baskets:read' },
+    },
+    {
       path: '/mining',
       name: 'mining',
       component: () => import('../pages/MiningPage.vue'),

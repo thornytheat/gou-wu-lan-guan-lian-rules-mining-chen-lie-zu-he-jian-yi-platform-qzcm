@@ -9,7 +9,7 @@ export const ROLE_LABELS: Record<Role, string> = {
 }
 
 export const ROLE_TASKS: Record<Role, string> = {
-  admin: '参数、审核、发布',
-  analyst: '跑挖掘、筛规则、提建议',
+  admin: '补传入库、参数、审核、发布',
+  analyst: '补传入库、跑挖掘、筛规则、提建议',
   viewer: '只看已发布陈列建议',
 }

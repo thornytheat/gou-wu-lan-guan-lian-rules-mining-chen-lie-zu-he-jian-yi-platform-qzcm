@@ -68,6 +68,12 @@
             <span class="eyebrow">endcap · planogram</span>
             <span class="board__code">{{ plan.plan_code }}</span>
             <span class="board__run">来源批次 {{ plan.run_label }}</span>
+            <span v-if="plan.basket_basis" class="board__run" data-test="plan-basket-basis">
+              小票版本口径：{{ plan.basket_basis.snapshot_batch }} · {{ plan.basket_basis.basket_count }} 张有效小票（active）
+              <template v-if="plan.basket_basis.imports_after_plan > 0">
+                · 之后还入库 {{ plan.basket_basis.imports_after_plan }} 批，本单不回写
+              </template>
+            </span>
           </div>
           <div class="board__endcap-right">
             <span :class="['chip', plan.status === 'published' ? 'chip--mint' : 'chip--tag']">
@@ -149,6 +155,14 @@
               </dd>
             </div>
             <div>
+              <dt>所依据的小票版本</dt>
+              <dd v-if="basketBasis">
+                批次 {{ basketBasis.snapshot_batch }} · {{ basketBasis.basket_count }} 张有效小票（{{ basketBasis.version_scope }}）。
+                发布后新到的作废 / 更正不会改写本单；如需新口径，请重新跑挖掘并生成新建议单。
+              </dd>
+              <dd v-else>生成时的有效小票版本（active）；发布后补传不回写。</dd>
+            </div>
+            <div>
               <dt>职责边界</dt>
               <dd>品类总监发布建议单；店长只读执行；运营可重复生成草稿对比。</dd>
             </div>
@@ -184,6 +198,7 @@ const canExport = computed(() => auth.can('rules:export'))
 const downloadUrl = computed(() => (plan.value ? planogramExportUrl(plan.value.plan_code) : '#'))
 const monthlyFactor = computed(() => (plan.value?.basis?.monthly_factor ?? 0).toFixed(2))
 const meanAmount = computed(() => plan.value?.basis?.mean_amount ?? 0)
+const basketBasis = computed(() => plan.value?.basket_basis ?? null)
 const adoptionRate = computed(() => (plan.value?.basis?.adoption_rate ?? 0).toFixed(2))
 
 const stats = computed<SlipItem[]>(() => {

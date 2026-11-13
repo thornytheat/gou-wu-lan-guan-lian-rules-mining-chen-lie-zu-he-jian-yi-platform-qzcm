@@ -153,7 +153,11 @@
           </table>
         </ShelfBand>
 
-        <ShelfBand index="05" title="小票样本" caption="最近 6 张：来源渠道 / 门店分层 / 明细行">
+        <ShelfBand
+      index="05"
+      title="小票样本"
+      caption="最近 6 张有效小票（重复补传 / 作废 / 被更正版本不参与挖掘）"
+    >
           <div class="baskets">
             <article v-for="basket in dataset?.sample_baskets ?? []" :key="basket.id" class="basket">
               <div class="basket__head">

@@ -37,6 +37,10 @@ def planogram_csv(db: Session, plan_code: str) -> tuple[str, str]:
             select(RuleCandidate).where(RuleCandidate.id.in_({slot.rule_id for slot in slots}))
         ).scalars()
     }
+    run = None
+    if rules:
+        run = mining_service.get_run(db, str(next(iter(rules.values())).run_id))
+    snapshot_label = f"{run.run_label} · active 有效版本" if run is not None else ""
     adopted = [slot for slot in slots if rules.get(slot.rule_id) and rules[slot.rule_id].status == "adopted"]
     exported = adopted or slots
     rows: list[list[str]] = [
@@ -53,6 +57,7 @@ def planogram_csv(db: Session, plan_code: str) -> tuple[str, str]:
             "共现小票数",
             "预估月增量(元)",
             "状态",
+            "小票版本口径",
             "生成时间",
         ]
     ]
@@ -74,6 +79,7 @@ def planogram_csv(db: Session, plan_code: str) -> tuple[str, str]:
                 str(rule.cooccur_count) if rule else "",
                 f"{float(slot.est_uplift):.2f}",
                 SLOT_STATUS_LABELS.get(slot.status, slot.status),
+                snapshot_label,
                 (slot.created_at or datetime.now()).strftime("%Y-%m-%d %H:%M"),
             ]
         )

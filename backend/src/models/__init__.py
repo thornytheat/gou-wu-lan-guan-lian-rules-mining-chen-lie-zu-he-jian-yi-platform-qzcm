@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from src.models.audit_log import AuditLog
+from src.models.basket_ingest_record import BasketIngestRecord
 from src.models.base import Base
 from src.models.mining_run import MiningRun
 from src.models.order_basket import OrderBasket
@@ -13,6 +14,7 @@ from src.models.user import User
 
 __all__ = [
     "AuditLog",
+    "BasketIngestRecord",
     "Base",
     "MiningRun",
     "OrderBasket",

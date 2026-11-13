@@ -23,7 +23,7 @@ from src.models.planogram_slot import PlanogramSlot
 from src.models.rule_candidate import RuleCandidate
 from src.models.sku import Sku
 from src.models.user import User
-from src.services import fixtures_loader, mining_service
+from src.services import fixtures_loader, ingest_core, mining_service
 from src.utils.password import hash_password
 from scripts import fixtures, fixtures_baskets
 
@@ -90,7 +90,7 @@ def seed_skus(db) -> None:
 
 
 def seed_baskets(db) -> int:
-    existing = db.execute(select(func.count()).select_from(OrderBasket)).scalar_one()
+    existing = db.execute(select(func.count(OrderBasket.basket_no.distinct()))).scalar_one()
     if existing:
         _skipped("OrderBasket", f"all:{existing}")
         return existing
@@ -107,6 +107,11 @@ def seed_baskets(db) -> int:
                 net_amount=Decimal(item["net_amount"]),
                 item_count=item["item_count"],
                 lines=item["lines"],
+                version=1,
+                status="active",
+                content_hash=ingest_core.content_hash(item["basket_no"], item["lines"]),
+                source_batch="SEED-BASELINE",
+                imported_at=datetime(2026, 10, 12, 3, 0, tzinfo=timezone.utc),
             )
         )
     db.flush()
@@ -172,7 +177,7 @@ def seed_all() -> dict:
         seed_plan(db, users["admin"], run)
 
         skus = db.execute(select(func.count()).select_from(Sku)).scalar_one()
-        baskets = db.execute(select(func.count()).select_from(OrderBasket)).scalar_one()
+        baskets = db.execute(select(func.count(OrderBasket.basket_no.distinct()))).scalar_one()
         users_count = db.execute(select(func.count()).select_from(User)).scalar_one()
         rules = db.execute(
             select(func.count()).select_from(RuleCandidate).where(RuleCandidate.run_id == run.id)

@@ -20,6 +20,8 @@
 
 **一天的工作剧本**（也是演示顺序）
 
+0. 08:50 店长把前一天的补传文件交给运营；罗青禾在「补传核对」导入，看到 **接收 1 / 重复 1 / 作废 2 / 更正 1 / 拒绝 2**：
+   重复内容不新增、作废小票不参与挖掘、更正生成新版本并取代旧版本、未知 SKU 与负数量被拒。
 1. 09:05 品类运营罗青禾登录，打开「规则挖掘」，确认样本：3,000 张小票 / 40 SKU / 客单 ¥40.00。
 2. 09:08 用默认参数（min_support 0.01、max_itemset 3）点「运行挖掘」，2 秒内出结果：**46 个频繁项集**。
 3. 09:10 过滤（lift > 1.2 且 conf > 0.25）后剩 **6 条规则**；`啤酒 → 花生` lift **1.86**，Wilson 95% 区间 `[1.42, 2.44]`。
@@ -31,8 +33,11 @@
 9. 09:35 导出工单 CSV：表头 + **3 行**（只含已采纳规则）。
 10. 09:40 审计日志记录登录、跑挖掘、复核、发布、导出五类动作，含 trace_id。
 
-## 2. 功能（4 个业务模块串成链路）
+## 2. 功能（5 个业务模块串成链路）
 
+0. **补传核对**（`/ingest`）：每日补传入库。按 (发生时间, 来源序号, 到达序号) 确定每张小票的**唯一有效内容**；
+   同一批里逐票处置为 接收 / 重复 / 作废 / 更正 / 拒绝 五类计数；可回放任意批次的逐票台账，并查看全部最终有效小票（含版本号）。
+   已发布建议单绑定生成时的批次与版本口径，晚到的作废 / 更正只影响之后的新分析。
 1. **参数与挖掘**（`/mining`）：小票样本概览、Apriori 参数（min_support / 规则置信度下限 / max_itemset / 过滤阈值）、
    运行批次、频繁项集分页、最近批次、小票样本。批次异步派发到 Celery worker，前端轮询状态。
 2. **规则复核**（`/rules`）：关键词 / 状态 / 稳定性 / lift 下限筛选，按增量或 lift 排序，批量采纳，规则 CSV 导出。
@@ -41,6 +46,21 @@
 4. **陈列建议与工单**（`/planogram`）：货架位可视化、冲突组消解说明、预估月增量、发布、工单 CSV 导出、建议单历史。
 
 横切：JWT + 三角色 RBAC（低权角色调高权接口真实 403）、审计日志、Redis 滑动窗口限流、统一错误收敛。
+
+### 补传口径（可核对的入库过程）
+
+| 情形 | 处置 | 对小票版本的影响 |
+|---|---|---|
+| 首次补传 | 接收 | 新增 version=1 的 `active` 行 |
+| 同票同内容（重复补传） | 重复 | 不新增行；「重复补传不新增」 |
+| 同票不同内容、但没声明更正 | 拒绝 | 不改动任何状态：旧内容不能被直接覆盖 |
+| 作废（先到 / 后到） | 作废 | 该票没有有效版本；作废后才到的原票也不生效 |
+| 更正（`same_as_no` 指向目标票） | 更正 | 生成 version+1 的 `active` 行，旧版本转 `superseded`（历史保留） |
+| 未知 SKU / 数量非正 / 金额为负 / 缺发生时间 | 拒绝 | 不改动任何状态 |
+
+- 发生顺序优先于上传先后：晚到的旧发生时间记录排在前面，不会偷改历史。
+- 挖掘、概览、反例、SKU 支持度只读 `status=active` 的版本；`superseded` / `voided` 不参与任何计数。
+- 每批导入写一条 `basket_ingest_records` 台账（`detail` 是逐票处置结果、`event_seq` 是处置序号）并落审计日志 `basket.import`。
 
 ## 3. 快速启动
 
@@ -84,6 +104,13 @@ cd frontend && npm install && npm run dev   # http://localhost:18259，/api 代�
 真实 403 示例（不是前端隐藏按钮）：
 
 ```bash
+# 店长读取补传台账 → 403
+curl -s -o /dev/null -w '%{http_code}\n' -H "Authorization: Bearer $VIEWER_TOKEN" \
+  http://localhost:18259/api/ingest/summary
+# 店长提交补传批次 → 403
+curl -s -o /dev/null -w '%{http_code}\n' -X POST -H "Authorization: Bearer $VIEWER_TOKEN" \
+  -H 'Content-Type: application/json' -d '{"batch_no":"ING-X","records":[]}' \
+  http://localhost:18259/api/ingest/import
 # 店长导出工单 → 403
 curl -s -o /dev/null -w '%{http_code}\n' -H "Authorization: Bearer $VIEWER_TOKEN" \
   http://localhost:18259/api/planogram/PLAN-2026-W45/export
@@ -97,6 +124,14 @@ curl -s -o /dev/null -w '%{http_code}\n' -H "Authorization: Bearer $VIEWER_TOKEN
 ```
 
 ## 5. 算法口径（后端 Python 真算，前端只展示）
+
+### 算法 0：补传版本折算（`backend/src/services/ingest_core.py`，纯函数）
+
+- 排序键 `(occurred_at, source_seq, arrive_seq)`；版本链按票号归并。
+- 内容指纹 = `sha256(basket_no + 按 SKU 升序的 (sku, qty))`：金额尾差与明细行顺序不制造重复版本；内容变化必须走更正。
+- 不变量（`backend/tests/test_ingest.py` + `test_invariants.py`）：五类计数之和 = 记录条数；
+  重复不新增版本；作废后 `final_baskets` 不含该票；更正后最终版本一定是链尾；拒绝不改变任何已有状态。
+- demo 批次：接收 1 · 重复 1 · 作废 2 · 更正 1 · 拒绝 2（作废命中 1 张有效小票，另 1 条是「作废先到」的占位）。
 
 ### 算法 1：Apriori 频繁项集与关联规则（`backend/src/services/apriori_service.py`）
 
@@ -118,7 +153,11 @@ curl -s -o /dev/null -w '%{http_code}\n' -H "Authorization: Bearer $VIEWER_TOKEN
   （51+41+37+35+44 = 208 张共现 × ¥40.00 × 0.35 × 30/7）。
 
 **可复现**：seed 用固定 `random.Random(20261112)` 生成小票，价格经过一次性调参使客单均值精确为 ¥40.00；
-两次 seed 输出同一行 `SEED_SUMMARY`。
+两次 seed 输出同一行 `SEED_SUMMARY`。seed 基线小票直接落为 `version=1 / active / source_batch=SEED-BASELINE`，
+不经过补传链路，因此导入页的批次台账从 0 开始。
+
+**版本口径**：建议单快照 `basket_basis`（来源批次、参与挖掘的有效小票数、生成后新入库的批次数）随建议单返回；
+工单 CSV 也带「小票版本口径」列。已发布建议单不会被之后到达的作废 / 更正回写。
 
 ## 6. 技术栈
 
@@ -144,10 +183,10 @@ gb-586/
 │   └── src/
 │       ├── config/                 # settings / database / app / celery_app
 │       ├── constants/              # enums（共享枚举）/ roles / error_codes / limits / log_templates
-│       ├── models/                 # user / sku / order_basket / mining_run / rule_candidate / rule_review / planogram_slot / audit_log
+│       ├── models/                 # user / sku / order_basket(版本化) / basket_ingest_record / mining_run / rule_candidate / rule_review / planogram_slot / audit_log
 │       ├── schemas/                # auth / basket / mining / rule / planogram
-│       ├── services/               # apriori / stability / planogram / mining / rule / basket / export / audit / auth
-│       ├── controllers/ routes/    # 7 组路由，统一 /api 前缀
+│       ├── services/               # ingest_core / ingest / apriori / stability / planogram / mining / rule / basket / export / audit / auth
+│       ├── controllers/ routes/    # 8 组路由，统一 /api 前缀（含 /ingest）
 │       ├── middlewares/            # auth / rbac / audit_logger / error_handler / rate_limit
 │       └── utils/                  # jwt / password / stats(Wilson) / redis / errors / logger
 ├── worker/
@@ -171,6 +210,7 @@ gb-586/
 | `REDIS_URL` | `redis://redis:6379/0` | Celery broker / 限流 / 心跳 |
 | `SEED_DEMO` | `true` | 启动时执行一次幂等 seed |
 | `RATE_LIMIT_MINING_PER_MINUTE` | `6` | 每用户每分钟最多跑几次挖掘 |
+| `RATE_LIMIT_INGEST_PER_MINUTE` | `12` | 每用户每分钟最多提交几次补传 |
 
 ## 9. Docker 说明
 
@@ -197,7 +237,19 @@ gb-586/
 | `frontend/src/types/domain.ts` | 联合类型（`RunStatus` / `RuleStatus` / …） |
 | `frontend/src/pages/*.vue`、`components/common/*.vue` | 标签渲染与状态 chip |
 
-**枚举组 2：角色（admin / analyst / viewer）与能力（mining:run / rules:review / rules:publish / planogram:write / planogram:publish / rules:export / audit:read / baskets:read）**
+**枚举组 3：补传记录类型（supplement / void / correction）与处置结果（received / duplicate / voided / corrected / rejected）**
+
+| 位置 | 作用 |
+|---|---|
+| `backend/src/constants/ingest.py` | 定义 `IngestRecordType` `IngestResult` + 中文标签 + 五类计数顺序 |
+| `backend/src/services/ingest_core.py` | 版本折算状态机与逐票台账行 |
+| `backend/src/models/order_basket.py` | 版本状态 `active` / `superseded` / `voided` |
+| `backend/src/schemas/ingest.py` | `IngestRecordIn.record_type` 的 Literal 校验 |
+| `frontend/src/constants/ingest.ts` | 镜像定义 + 标签 + chip 配色 |
+| `frontend/src/types/domain.ts` | 联合类型（`IngestRecordType` / `IngestResult`） |
+| `frontend/src/pages/IngestPage.vue` | 五类计数、逐票台账、最终有效小票 |
+
+**枚举组 2：角色（admin / analyst / viewer）与能力（mining:run / rules:review / rules:publish / planogram:write / planogram:publish / rules:export / audit:read / baskets:read / baskets:import）**
 
 | 位置 | 作用 |
 |---|---|

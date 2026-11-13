@@ -77,6 +77,9 @@ const auth = useAuthStore()
 
 const navItems = computed(() => {
   const items = [
+    ...(auth.can('baskets:read')
+      ? [{ to: '/ingest', no: '00', label: '补传核对', hint: '接收 · 重复 · 作废 · 更正' }]
+      : []),
     { to: '/mining', no: '01', label: '规则挖掘', hint: '参数 · 频繁项集' },
     { to: '/rules', no: '02', label: '规则复核', hint: '筛选 · 采纳 · 稳定性' },
     { to: '/planogram', no: '03', label: '陈列建议', hint: '货架位 · 增量 · 工单' },
